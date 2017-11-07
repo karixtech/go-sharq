@@ -13,9 +13,9 @@ const (
 )
 
 type EnqueueRequest struct {
-	JobID    string            `json:"job_id"`
-	Interval int               `json:"interval"`
-	Payload  map[string]string `json:"payload"`
+	JobID    string      `json:"job_id"`
+	Interval int         `json:"interval"`
+	Payload  interface{} `json:"payload"`
 }
 
 type EnqueueResponse struct {
