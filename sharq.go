@@ -121,6 +121,7 @@ func (c *Client) Enqueue(e *EnqueueRequest, queueType string, queueID string) (E
 	}
 
 	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("User-Agent", UserAgent)
 
 	resp, err := c.client.Do(req)
 
