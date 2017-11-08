@@ -15,16 +15,13 @@ func TestEnqueue(t *testing.T) {
 
 	er := &EnqueueRequest{JobID: "123-123", Interval: 4, Payload: map[string]string{"hello": "world", "foo": "bar"}}
 
-	enqueueResponse, err := client.Enqueue(er, "sms", "1")
-	if err != nil {
-		t.Errorf("Failed to queue: %v", err)
-	} else {
-		t.Logf("Enqueued: %v\n", enqueueResponse)
-	}
+	enqueueResponse, _ := client.Enqueue(er, "sms", "1")
+
+	assert.Equal(t, enqueueResponse.JobID, er.JobID)
+	assert.Equal(t, enqueueResponse.Status, "queued")
 }
 
 func TestBulkEnqueueWithSinglePayload(t *testing.T) {
-
 	client := NewClient(URL)
 
 	ber := []BulkEnqueueRequest{
@@ -38,7 +35,6 @@ func TestBulkEnqueueWithSinglePayload(t *testing.T) {
 }
 
 func TestBulkEnqueue(t *testing.T) {
-
 	client := NewClient(URL)
 
 	ber := []BulkEnqueueRequest{
