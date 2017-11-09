@@ -4,13 +4,20 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	httpmock "gopkg.in/jarcoal/httpmock.v1"
 )
 
 const (
-	URL = "http://127.0.0.1:8080/api/v1/namespaces/default/services/sharq-server-sharq-server-chart:8081/proxy"
+	URL = "https://api.sharq-server.com"
 )
 
 func TestEnqueue(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("POST", "https://api.sharq-server.com/enqueue/sms/1/",
+		httpmock.NewStringResponder(201, `{"status": "queued"}`))
+
 	client := NewClient(URL)
 
 	er := &EnqueueRequest{JobID: "123-123", Interval: 4, Payload: map[string]string{"hello": "world", "foo": "bar"}}
@@ -22,6 +29,12 @@ func TestEnqueue(t *testing.T) {
 }
 
 func TestBulkEnqueueWithSinglePayload(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("POST", "https://api.sharq-server.com/enqueue/sms/1/",
+		httpmock.NewStringResponder(201, `{"status": "queued"}`))
+
 	client := NewClient(URL)
 
 	ber := []BulkEnqueueRequest{
@@ -35,6 +48,12 @@ func TestBulkEnqueueWithSinglePayload(t *testing.T) {
 }
 
 func TestBulkEnqueue(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("POST", "https://api.sharq-server.com/enqueue/sms/1/",
+		httpmock.NewStringResponder(201, `{"status": "queued"}`))
+
 	client := NewClient(URL)
 
 	ber := []BulkEnqueueRequest{
