@@ -10,8 +10,7 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
-.glide/
+# go-dep vendor folder
 vendor/
 
 # Swap
@@ -28,12 +27,6 @@ Session.vim
 *~
 # Auto-generated tag files
 tags
-
-# Binary
-tungsten-server
-
-# Modelq models
-modelq/model
 
 # jUnit report
 report.xml
