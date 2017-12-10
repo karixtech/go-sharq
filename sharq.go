@@ -33,7 +33,10 @@ type BulkEnqueueRequest struct {
 type EnqueueResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
-	JobID   string `json:job_id"`
+	JobID   string `json:"job_id"`
+
+	// error while sending job to sharq
+	Error error `json:"-"`
 }
 
 type Client struct {
@@ -56,65 +59,61 @@ func NewClient(URL string) *Client {
 
 }
 
-func (c *Client) BulkEnqueue(e []BulkEnqueueRequest) ([]EnqueueResponse, error) {
-
-	queueMessages := make(chan EnqueueResponse)
+func (c *Client) BulkEnqueue(e []BulkEnqueueRequest) []EnqueueResponse {
+	num_requests := len(e)
 
 	var wg sync.WaitGroup
+	wg.Add(num_requests)
 
-	// Add the number of requests to the WG
-	wg.Add(len(e))
+	// As opposed to previous pattern this concurrency pattern allows
+	// request and response arrays to be in same order
+	tempR := make([]EnqueueResponse, num_requests)
 
-	go monitorWorker(&wg, queueMessages)
-
-	for _, eRequest := range e {
-		go c.queueToSharq(eRequest, &wg, queueMessages)
+	for i := 0; i < num_requests; i++ {
+		go func(request_index int) {
+			defer wg.Done()
+			ber := e[request_index]
+			er := &EnqueueRequest{
+				JobID:    ber.JobID,
+				Interval: ber.Interval,
+				Payload:  ber.Payload,
+			}
+			tempR[request_index] = c.Enqueue(er, ber.QueueType, ber.QueueID)
+		}(i)
 	}
 
-	var tempR []EnqueueResponse
-
-	for response := range queueMessages {
-		tempR = append(tempR, response)
-	}
-
-	return tempR, nil
-
-}
-
-func (c *Client) queueToSharq(e BulkEnqueueRequest, wg *sync.WaitGroup, cs chan EnqueueResponse) {
-	defer wg.Done()
-
-	er := &EnqueueRequest{JobID: e.JobID, Interval: e.Interval, Payload: e.Payload}
-	enqueueResponse, _ := c.Enqueue(er, e.QueueType, e.QueueID)
-
-	cs <- enqueueResponse
-
-}
-
-func monitorWorker(wg *sync.WaitGroup, cs chan EnqueueResponse) {
 	wg.Wait()
-	close(cs)
+
+	return tempR
 }
 
-func (c *Client) Enqueue(e *EnqueueRequest, queueType string, queueID string) (EnqueueResponse, error) {
+func (c *Client) Enqueue(
+	e *EnqueueRequest, queueType string, queueID string) EnqueueResponse {
+
 	var aResp EnqueueResponse
+	// Default values
+	aResp.JobID = e.JobID
+	aResp.Status = "failed"
 
 	enqueueURL, err := url.Parse(fmt.Sprintf(c.BaseURL.String() + "/enqueue/" + queueType + "/" + queueID + "/"))
 	if err != nil {
 		log.Println(err)
-		return aResp, err
+		aResp.Error = err
+		return aResp
 	}
 
 	jsonValue, err := json.Marshal(e)
 	if err != nil {
 		fmt.Printf("Error: %v", err)
-		return aResp, err
+		aResp.Error = err
+		return aResp
 	}
 
 	req, err := http.NewRequest("POST", enqueueURL.String(), bytes.NewBuffer(jsonValue))
 	if err != nil {
 		fmt.Printf("Error creating request object: %v", err)
-		return aResp, err
+		aResp.Error = err
+		return aResp
 	}
 
 	req.Header.Add("Content-Type", "application/json")
@@ -124,7 +123,8 @@ func (c *Client) Enqueue(e *EnqueueRequest, queueType string, queueID string) (E
 
 	if err != nil {
 		fmt.Println(err)
-		return aResp, err
+		aResp.Error = err
+		return aResp
 	}
 
 	defer resp.Body.Close()
@@ -134,20 +134,22 @@ func (c *Client) Enqueue(e *EnqueueRequest, queueType string, queueID string) (E
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			fmt.Println(err)
-			return aResp, err
+			aResp.Error = err
+			return aResp
 		}
 
 		err = json.Unmarshal(bodyBytes, &aResp)
 		if err != nil {
 			fmt.Println(err)
-			return aResp, err
+			aResp.Error = err
+			return aResp
 		}
-		aResp.JobID = e.JobID
 	} else {
-		return aResp, errors.New("Could not create")
+		aResp.Error = errors.New("Could not create")
+		return aResp
 	}
 
-	return aResp, nil
+	return aResp
 }
 
 // func (c *Client) Dequeue(queueType string) (*DequeueResponse, error) {

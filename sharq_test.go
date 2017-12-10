@@ -22,8 +22,9 @@ func TestEnqueue(t *testing.T) {
 
 	er := &EnqueueRequest{JobID: "123-123", Interval: 4, Payload: map[string]string{"hello": "world", "foo": "bar"}}
 
-	enqueueResponse, _ := client.Enqueue(er, "sms", "1")
+	enqueueResponse := client.Enqueue(er, "sms", "1")
 
+	assert.NoError(t, enqueueResponse.Error)
 	assert.Equal(t, enqueueResponse.JobID, er.JobID)
 	assert.Equal(t, enqueueResponse.Status, "queued")
 }
@@ -41,8 +42,9 @@ func TestBulkEnqueueWithSinglePayload(t *testing.T) {
 		{JobID: "134-145", Interval: 4, Payload: map[string]string{"hello": "world", "foo": "bar"}, QueueType: "sms", QueueID: "1"},
 	}
 
-	enqueueResponse, _ := client.BulkEnqueue(ber)
+	enqueueResponse := client.BulkEnqueue(ber)
 
+	assert.NoError(t, enqueueResponse[0].Error)
 	assert.Equal(t, enqueueResponse[0].JobID, ber[0].JobID)
 	assert.Equal(t, enqueueResponse[0].Status, "queued")
 }
@@ -61,18 +63,22 @@ func TestBulkEnqueue(t *testing.T) {
 		{JobID: "136-147", Interval: 4, Payload: map[string]string{"egg": "spam", "foo": "bar"}, QueueType: "sms", QueueID: "1"},
 	}
 
-	enqueueResponse, _ := client.BulkEnqueue(ber)
+	enqueueResponse := client.BulkEnqueue(ber)
 
 	if enqueueResponse[0].JobID == ber[0].JobID {
+		assert.NoError(t, enqueueResponse[0].Error)
 		assert.Equal(t, enqueueResponse[0].JobID, ber[0].JobID)
 		assert.Equal(t, enqueueResponse[0].Status, "queued")
 
+		assert.NoError(t, enqueueResponse[1].Error)
 		assert.Equal(t, enqueueResponse[1].JobID, ber[1].JobID)
 		assert.Equal(t, enqueueResponse[1].Status, "queued")
 	} else {
+		assert.NoError(t, enqueueResponse[0].Error)
 		assert.Equal(t, enqueueResponse[0].JobID, ber[1].JobID)
 		assert.Equal(t, enqueueResponse[0].Status, "queued")
 
+		assert.NoError(t, enqueueResponse[1].Error)
 		assert.Equal(t, enqueueResponse[1].JobID, ber[0].JobID)
 		assert.Equal(t, enqueueResponse[1].Status, "queued")
 	}
