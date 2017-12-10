@@ -62,10 +62,10 @@ func (c *Client) BulkEnqueue(e []BulkEnqueueRequest) ([]EnqueueResponse, error) 
 
 	var wg sync.WaitGroup
 
-	go monitorWorker(&wg, queueMessages)
-
 	// Add the number of requests to the WG
 	wg.Add(len(e))
+
+	go monitorWorker(&wg, queueMessages)
 
 	for _, eRequest := range e {
 		go c.queueToSharq(eRequest, &wg, queueMessages)
@@ -85,11 +85,7 @@ func (c *Client) queueToSharq(e BulkEnqueueRequest, wg *sync.WaitGroup, cs chan 
 	defer wg.Done()
 
 	er := &EnqueueRequest{JobID: e.JobID, Interval: e.Interval, Payload: e.Payload}
-	enqueueResponse, err := c.Enqueue(er, e.QueueType, e.QueueID)
-
-	if err != nil {
-		log.Fatalln(err)
-	}
+	enqueueResponse, _ := c.Enqueue(er, e.QueueType, e.QueueID)
 
 	cs <- enqueueResponse
 
@@ -105,7 +101,8 @@ func (c *Client) Enqueue(e *EnqueueRequest, queueType string, queueID string) (E
 
 	enqueueURL, err := url.Parse(fmt.Sprintf(c.BaseURL.String() + "/enqueue/" + queueType + "/" + queueID + "/"))
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		return aResp, err
 	}
 
 	jsonValue, err := json.Marshal(e)
