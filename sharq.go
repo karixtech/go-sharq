@@ -3,8 +3,8 @@ package sharq
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -37,6 +37,14 @@ type EnqueueResponse struct {
 
 	// error while sending job to sharq
 	Error error `json:"-"`
+}
+
+type DequeueResponse struct {
+	Status            string      `json:"status"`
+	QueueID           string      `json:"queue_id"`
+	JobID             string      `json:"job_id"`
+	Payload           interface{} `json:"payload"`
+	RequeuesRemaining int         `json:"requeues_remaining"`
 }
 
 type Client struct {
@@ -152,16 +160,60 @@ func (c *Client) Enqueue(
 	return aResp
 }
 
-// func (c *Client) Dequeue(queueType string) (*DequeueResponse, error) {
-// 	req, err := c.NewRequest("GET", "dequeue/"+queueType+"/", nil)
-//
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	req.Header.Add("Content-Type", "application/json")
-//
-// 	aResp := &DequeueResponse{}
-//
-// 	resp, err := c.Do(req, aResp)
-// }
+func (c *Client) Dequeue(queueType string) (*DequeueResponse, error) {
+	var aResp DequeueResponse
+	// TODO: Set default values here
+
+	dequeueURL, err := url.Parse(fmt.Sprintf(
+		c.BaseURL.String() + "/dequeue/" + queueType + "/"))
+	if err != nil {
+		return nil, err
+	}
+
+	// Prepare request
+	req, err := http.NewRequest("GET", dequeueURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("User-Agent", UserAgent)
+
+	// Perform request
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		err = json.Unmarshal(bodyBytes, &aResp)
+		if err != nil {
+			return nil, err
+		}
+	case http.StatusNotFound:
+		return nil, errors.New("No Jobs Found")
+	case http.StatusBadRequest:
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to read bad request response")
+		}
+		var errResp struct {
+			Message string `json:"message"`
+		}
+		if err = json.Unmarshal(bodyBytes, &errResp); err == nil {
+			return nil, fmt.Errorf("Bad request: %s", errResp.Message)
+		} else {
+			return nil, errors.Wrap(err, "Bad request")
+		}
+	default:
+		return nil, errors.New("Could not dequeue")
+	}
+
+	return &aResp, nil
+}

@@ -1,6 +1,7 @@
 package sharq
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -82,4 +83,52 @@ func TestBulkEnqueue(t *testing.T) {
 		assert.Equal(t, enqueueResponse[1].JobID, ber[0].JobID)
 		assert.Equal(t, enqueueResponse[1].Status, "queued")
 	}
+}
+
+func TestDequeue(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("GET", "https://api.sharq-server.com/dequeue/sms/",
+		httpmock.NewStringResponder(200, `{
+				"status": "success",
+				"queue_id": "1",
+				"job_id": "123-123",
+				"payload": {
+					"hello": "world",
+					"foo": "bar"
+				},
+				"requeues_remaining": 1
+			}`))
+
+	client := NewClient(URL)
+
+	dequeueResponse, err := client.Dequeue("sms")
+
+	assert.NoError(t, err)
+	assert.Equal(t, dequeueResponse.JobID, "123-123")
+	assert.Equal(t, dequeueResponse.Payload,
+		map[string]interface{}{"hello": "world", "foo": "bar"})
+	assert.Equal(t, dequeueResponse.QueueID, "1")
+	assert.Equal(t, dequeueResponse.RequeuesRemaining, 1)
+	assert.Equal(t, dequeueResponse.Status, "success")
+}
+
+func TestDequeueNotFound(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("GET", "https://api.sharq-server.com/dequeue/sms/",
+		httpmock.NewStringResponder(404, `{
+				"status": "failure"
+			}`))
+
+	client := NewClient(URL)
+
+	dequeueResponse, err := client.Dequeue("sms")
+
+	if assert.Error(t, err) {
+		assert.Equal(t, "No Jobs Found", fmt.Sprintf("%v", err))
+	}
+	assert.Nil(t, dequeueResponse)
 }
