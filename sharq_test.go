@@ -132,3 +132,67 @@ func TestDequeueNotFound(t *testing.T) {
 	}
 	assert.Nil(t, dequeueResponse)
 }
+
+func TestFinish(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("POST",
+		"https://api.sharq-server.com/finish/sms/1/123-123/",
+		httpmock.NewStringResponder(200,
+			`{
+				"status": "success"
+			}`,
+		),
+	)
+
+	client := NewClient(URL)
+
+	err := client.Finish("sms", "1", "123-123")
+
+	assert.NoError(t, err)
+}
+
+func TestFinishFailure(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("POST",
+		"https://api.sharq-server.com/finish/sms/1/123-123/",
+		httpmock.NewStringResponder(200,
+			`{
+				"status": "failure"
+			}`,
+		),
+	)
+
+	client := NewClient(URL)
+
+	err := client.Finish("sms", "1", "123-123")
+
+	if assert.Error(t, err) {
+		assert.Equal(t, "Failure", fmt.Sprintf("%v", err))
+	}
+}
+
+func TestFinishNotFound(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("POST",
+		"https://api.sharq-server.com/finish/sms/1/123-123/",
+		httpmock.NewStringResponder(404,
+			`{
+				"status": "failure"
+			}`,
+		),
+	)
+
+	client := NewClient(URL)
+
+	err := client.Finish("sms", "1", "123-123")
+
+	if assert.Error(t, err) {
+		assert.Equal(t, "Job Not Found", fmt.Sprintf("%v", err))
+	}
+}

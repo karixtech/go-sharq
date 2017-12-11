@@ -217,3 +217,68 @@ func (c *Client) Dequeue(queueType string) (*DequeueResponse, error) {
 
 	return &aResp, nil
 }
+
+func (c *Client) Finish(queueType, queueID, jobID string) error {
+	finishURL, err := url.Parse(fmt.Sprintf(
+		c.BaseURL.String() + "/finish/" + queueType + "/" +
+			queueID + "/" + jobID + "/"))
+	if err != nil {
+		return err
+	}
+
+	// Prepare request
+	req, err := http.NewRequest("POST", finishURL.String(), nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("User-Agent", UserAgent)
+
+	// Perform request
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	var aResp struct {
+		Status string `json:"status"`
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+
+		err = json.Unmarshal(bodyBytes, &aResp)
+		if err != nil {
+			return err
+		}
+	case http.StatusNotFound:
+		return errors.New("Job Not Found")
+	case http.StatusBadRequest:
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return errors.Wrap(err, "Failed to read bad request response")
+		}
+		var errResp struct {
+			Message string `json:"message"`
+		}
+		if err = json.Unmarshal(bodyBytes, &errResp); err == nil {
+			return fmt.Errorf("Bad request: %s", errResp.Message)
+		} else {
+			return errors.Wrap(err, "Bad request")
+		}
+	default:
+		return errors.New("Could not dequeue")
+	}
+
+	if aResp.Status == "success" {
+		return nil
+	} else {
+		return errors.New("Failure")
+	}
+}
