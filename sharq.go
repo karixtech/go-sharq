@@ -197,7 +197,7 @@ func (c *Client) Dequeue(queueType string) (*DequeueResponse, error) {
 			return nil, err
 		}
 	case http.StatusNotFound:
-		return nil, errors.New("No Jobs Found")
+		return nil, nil
 	case http.StatusBadRequest:
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
