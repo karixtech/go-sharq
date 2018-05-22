@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 )
 
 const (
@@ -164,6 +165,8 @@ func (c *Client) Dequeue(queueType string) (*DequeueResponse, error) {
 	var aResp DequeueResponse
 	// TODO: Set default values here
 
+	// Calculate timestamp for next dequeue time here
+	timestamp := time.Now().UnixNano() / 1000000
 	dequeueURL, err := url.Parse(fmt.Sprintf(
 		c.BaseURL.String() + "/dequeue/" + queueType + "/"))
 	if err != nil {
@@ -176,6 +179,11 @@ func (c *Client) Dequeue(queueType string) (*DequeueResponse, error) {
 		return nil, err
 	}
 	req.Header.Add("User-Agent", UserAgent)
+
+	// GET params
+	q := req.URL.Query()
+	q.Add("timestamp", fmt.Sprint(timestamp))
+	req.URL.RawQuery = q.Encode()
 
 	// Perform request
 	resp, err := c.client.Do(req)
