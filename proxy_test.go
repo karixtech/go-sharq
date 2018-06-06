@@ -19,7 +19,7 @@ func TestEnqueue(t *testing.T) {
 	httpmock.RegisterResponder("POST", "https://api.sharq-server.com/enqueue/sms/1/",
 		httpmock.NewStringResponder(201, `{"status": "queued"}`))
 
-	client := NewClient(URL)
+	client := NewProxyClient(URL)
 
 	er := &EnqueueRequest{JobID: "123-123", Interval: 4, Payload: map[string]string{"hello": "world", "foo": "bar"}}
 
@@ -37,7 +37,7 @@ func TestBulkEnqueueWithSinglePayload(t *testing.T) {
 	httpmock.RegisterResponder("POST", "https://api.sharq-server.com/enqueue/sms/1/",
 		httpmock.NewStringResponder(201, `{"status": "queued"}`))
 
-	client := NewClient(URL)
+	client := NewProxyClient(URL)
 
 	ber := []BulkEnqueueRequest{
 		{JobID: "134-145", Interval: 4, Payload: map[string]string{"hello": "world", "foo": "bar"}, QueueType: "sms", QueueID: "1"},
@@ -57,7 +57,7 @@ func TestBulkEnqueue(t *testing.T) {
 	httpmock.RegisterResponder("POST", "https://api.sharq-server.com/enqueue/sms/1/",
 		httpmock.NewStringResponder(201, `{"status": "queued"}`))
 
-	client := NewClient(URL)
+	client := NewProxyClient(URL)
 
 	ber := []BulkEnqueueRequest{
 		{JobID: "134-145", Interval: 4, Payload: map[string]string{"hello": "world", "foo": "bar"}, QueueType: "sms", QueueID: "1"},
@@ -101,7 +101,7 @@ func TestDequeue(t *testing.T) {
 				"requeues_remaining": 1
 			}`))
 
-	client := NewClient(URL)
+	client := NewProxyClient(URL)
 
 	dequeueResponse, err := client.Dequeue("sms")
 
@@ -123,14 +123,13 @@ func TestDequeueNotFound(t *testing.T) {
 				"status": "failure"
 			}`))
 
-	client := NewClient(URL)
+	client := NewProxyClient(URL)
 
 	dequeueResponse, err := client.Dequeue("sms")
 
-	if assert.Error(t, err) {
-		assert.Equal(t, "No Jobs Found", fmt.Sprintf("%v", err))
-	}
+	// No Jobs in sharq should not raise an error
 	assert.Nil(t, dequeueResponse)
+	assert.Nil(t, err)
 }
 
 func TestFinish(t *testing.T) {
@@ -146,7 +145,7 @@ func TestFinish(t *testing.T) {
 		),
 	)
 
-	client := NewClient(URL)
+	client := NewProxyClient(URL)
 
 	err := client.Finish("sms", "1", "123-123")
 
@@ -166,7 +165,7 @@ func TestFinishFailure(t *testing.T) {
 		),
 	)
 
-	client := NewClient(URL)
+	client := NewProxyClient(URL)
 
 	err := client.Finish("sms", "1", "123-123")
 
@@ -188,7 +187,7 @@ func TestFinishNotFound(t *testing.T) {
 		),
 	)
 
-	client := NewClient(URL)
+	client := NewProxyClient(URL)
 
 	err := client.Finish("sms", "1", "123-123")
 
