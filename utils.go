@@ -1,8 +1,48 @@
 package sharq
 
 import (
+	"strconv"
 	"sync"
+	"time"
+
+	"github.com/vmihailenco/msgpack"
 )
+
+func isValidInterval(interval int) bool {
+	if interval <= 0 {
+		return false
+	}
+	return true
+}
+
+func isValidIdentifier(identifier string) bool {
+	// Check for length
+	if len(identifier) > 100 || len(identifier) < 1 {
+		return false
+	}
+	// Check for content
+	for _, c := range identifier {
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c != '_') && (c != '-') {
+			return false
+		}
+	}
+	return true
+}
+
+func isValidRequeueLimit(requeue_limit int) bool {
+	if requeue_limit <= 2 {
+		return false
+	}
+	return true
+}
+
+func serializePayload(payload interface{}) ([]byte, error) {
+	return msgpack.Marshal(payload)
+}
+
+func generateEpoch() string {
+	return strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
+}
 
 // Common bulk enqueue method which can be called from all client implementations
 func bulkEnqueue(c Sharq, e []BulkEnqueueRequest) []EnqueueResponse {
