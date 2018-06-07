@@ -40,6 +40,12 @@ func serializePayload(payload interface{}) ([]byte, error) {
 	return msgpack.Marshal(payload)
 }
 
+func deserializePayload(payload string) (interface{}, error) {
+	var obj interface{}
+	err := msgpack.Unmarshal([]byte(payload), &obj)
+	return obj, err
+}
+
 func generateEpoch() string {
 	return strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
 }

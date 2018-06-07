@@ -1,6 +1,8 @@
 package sharq
 
 import (
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -126,7 +128,7 @@ func (c *CoreClient) Dequeue(queueType string) (*DequeueResponse, error) {
 
 	timestamp := generateEpoch()
 
-	dequeue_response, err := scripts.DequeueScript.Run(
+	raw_response, err := scripts.DequeueScript.Run(
 		c.redisclient,
 		// Keys
 		[]string{c.config.KeyPrefix, queueType},
@@ -137,8 +139,29 @@ func (c *CoreClient) Dequeue(queueType string) (*DequeueResponse, error) {
 		return nil, err
 	}
 
-	// TODO: No idea about what to do with dequeue_response
-	_ = dequeue_response
+	dequeue_response, ok := raw_response.([]interface{})
+	if !ok {
+		return nil, errors.New("Dequeue lua script responded with incorrect type")
+	}
+	if len(dequeue_response) < 4 {
+		return nil, errors.New("Dequeue lua script responded with incorrect tuple size")
+	}
+
+	deserialized_payload, err := deserializePayload(dequeue_response[2].(string))
+	if err != nil {
+		return nil, err
+	}
+
+	requeues_remaining, err := strconv.Atoi(dequeue_response[3].(string))
+	if err != nil {
+		requeues_remaining = 0
+	}
+
+	aResp.Status = "success"
+	aResp.QueueID = dequeue_response[0].(string)
+	aResp.JobID = dequeue_response[1].(string)
+	aResp.Payload = deserialized_payload
+	aResp.RequeuesRemaining = requeues_remaining
 
 	return &aResp, nil
 }
@@ -154,7 +177,7 @@ func (c *CoreClient) Finish(queueType, queueID, jobID string) error {
 		return errors.New("`queue_type` has an invalid value.")
 	}
 
-	finish_response, err := scripts.FinishScript.Run(
+	raw_response, err := scripts.FinishScript.Run(
 		c.redisclient,
 		// Keys
 		[]string{c.config.KeyPrefix, queueType},
@@ -165,8 +188,13 @@ func (c *CoreClient) Finish(queueType, queueID, jobID string) error {
 		return err
 	}
 
-	// TODO: No idea about what to do with finish_response
-	_ = finish_response
+	finish_response, ok := raw_response.(string)
+	if !ok {
+		return errors.New("Finish lua script responded with incorrect type")
+	}
+	if finish_response != "1" {
+		return errors.New("Failure")
+	}
 
 	return nil
 }
@@ -184,7 +212,7 @@ func (c *CoreClient) requeue() error {
 
 	var last_err error = nil
 	for _, queue_type := range queue_types {
-		requeue_response, err := scripts.RequeueScript.Run(
+		raw_response, err := scripts.RequeueScript.Run(
 			c.redisclient,
 			// Keys
 			[]string{c.config.KeyPrefix, queue_type},
@@ -193,11 +221,22 @@ func (c *CoreClient) requeue() error {
 		).Result()
 		if err != nil {
 			last_err = err
+			continue
 		}
-
-		// TODO: No idea about what to do with requeue_response
-		// TODO: Finish discarded jobs
-		_ = requeue_response
+		job_discard_list, ok := raw_response.([]interface{})
+		if !ok {
+			last_err = errors.New("Requeue lua script responded with incorrect type")
+			continue
+		}
+		for _, job := range job_discard_list {
+			job_s := strings.SplitN(job.(string), ":", 2)
+			queue_id := job_s[0]
+			job_id := job_s[1]
+			err = c.Finish(queue_type, queue_id, job_id)
+			if err != nil {
+				last_err = err
+			}
+		}
 	}
 
 	return last_err
