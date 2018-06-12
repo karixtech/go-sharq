@@ -190,11 +190,11 @@ func (c *CoreClient) Finish(queueType, queueID, jobID string) error {
 		return err
 	}
 
-	finish_response, ok := raw_response.(string)
+	finish_response, ok := raw_response.(int64)
 	if !ok {
 		return errors.New("Finish lua script responded with incorrect type")
 	}
-	if finish_response != "1" {
+	if finish_response != 1 {
 		return errors.New("Failure")
 	}
 

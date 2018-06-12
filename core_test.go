@@ -483,3 +483,19 @@ func TestCoreEnqueueSecondJobQueueTypeActiveSet(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(queue_type_active_set))
 }
+
+func Test1(t *testing.T) {
+	cleanUp()
+
+	job_id := newJobID()
+	testCoreClient.Enqueue(&EnqueueRequest{
+		JobID:     job_id,
+		Interval:  10000,
+		Payload:   testPayload1,
+		QueueType: testQueueType,
+		QueueID:   testQueueID,
+	})
+	testCoreClient.Dequeue(testQueueType)
+	err := testCoreClient.Finish(testQueueType, testQueueID, job_id)
+	assert.NoError(t, err)
+}
