@@ -145,7 +145,8 @@ func (c *CoreClient) Dequeue(queueType string) (*DequeueResponse, error) {
 		return nil, errors.New("Dequeue lua script responded with incorrect type")
 	}
 	if len(dequeue_response) < 4 {
-		return nil, errors.New("Dequeue lua script responded with incorrect tuple size")
+		// Job not found should return no error and no job
+		return nil, nil
 	}
 
 	deserialized_payload, err := deserializePayload(dequeue_response[2].(string))
