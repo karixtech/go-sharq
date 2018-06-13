@@ -94,7 +94,7 @@ func TestCoreEnqueuePayload(t *testing.T) {
 	raw_payload, err := testCoreClient.redisclient.HGet(payload_map_name, payload_map_key).Result()
 	assert.NoError(t, err)
 	// decode the payload from msgpack to dictionary
-	payload, err := deserializePayload(raw_payload)
+	payload, err := deserializePayload(raw_payload[1 : len(raw_payload)-1])
 	assert.Equal(t, testPayload1, payload)
 }
 
@@ -344,7 +344,7 @@ func TestCoreEnqueueSecondJobPayload(t *testing.T) {
 	raw_payload, err := testCoreClient.redisclient.HGet(payload_map_name, payload_map_key).Result()
 	assert.NoError(t, err)
 	// decode the payload from msgpack to dictionary
-	payload, err := deserializePayload(raw_payload)
+	payload, err := deserializePayload(raw_payload[1 : len(raw_payload)-1])
 	assert.Equal(t, testPayload2, payload)
 }
 
