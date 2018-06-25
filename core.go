@@ -1,6 +1,7 @@
 package sharq
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -109,7 +110,7 @@ func (c *CoreClient) Enqueue(e *EnqueueRequest) EnqueueResponse {
 		// Keys
 		[]string{c.config.KeyPrefix, e.QueueType},
 		// Args
-		timestamp, e.QueueID, e.JobID, string(serialized_payload),
+		timestamp, e.QueueID, e.JobID, fmt.Sprintf("\"%s\"", string(serialized_payload)),
 		e.Interval, requeue_limit,
 	).Result()
 	if err != nil {
@@ -149,7 +150,8 @@ func (c *CoreClient) Dequeue(queueType string) (*DequeueResponse, error) {
 		return nil, nil
 	}
 
-	deserialized_payload, err := deserializePayload(dequeue_response[2].(string))
+	raw_dequeue_response := dequeue_response[2].(string)
+	deserialized_payload, err := deserializePayload(raw_dequeue_response[1 : len(raw_dequeue_response)-1])
 	if err != nil {
 		return nil, err
 	}
