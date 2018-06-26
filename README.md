@@ -3,7 +3,8 @@ go-sharq
 
 SharQ is a flexible rate limited queueing system built using [Redis](http://redis.io).
 
-go-sharq provides a core client library for both producer and consumer.
+go-sharq provides a core client library for both producer and consumer. This is a golang port of python library [sharq](https://github.com/plivo/sharq).
+It also provides proxy client to [sharq-server](https://github.com/plivo/sharq-server).
 
 ## Installation
 Install using go get
