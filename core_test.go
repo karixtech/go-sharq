@@ -44,7 +44,7 @@ func cleanUp() {
 }
 
 func newJobID() string {
-	return uuid.Must(uuid.NewV4()).String()
+	return uuid.Must(uuid.NewV4(), nil).String()
 }
 
 func TestCoreEnqueue(t *testing.T) {
